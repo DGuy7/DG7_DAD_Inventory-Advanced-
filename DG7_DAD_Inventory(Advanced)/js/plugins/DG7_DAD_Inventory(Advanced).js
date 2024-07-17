@@ -413,6 +413,7 @@ DADCell.prototype.constructor = DADCell
 DADCell.prototype.initialize = function (id, sprite, winancorx, winancory){
   this.winancorx = winancorx
   this.winancory = winancory
+  this.sprite = sprite
   bitmap = ImageManager.loadBitmap("img/DAD/", "inventorycells",0,true)
   Sprite.prototype.initialize.call(this, bitmap)
   this.setFrame(DADPlugInfo.cellsize * (sprite%16), DADPlugInfo.cellsize * Math.floor(sprite/16), DADPlugInfo.cellsize, DADPlugInfo.cellsize);
@@ -932,9 +933,11 @@ removeDADModuleByChar(char, module){
 //=======================================================
 
 removeDADModuleByPM(char, module){
+  console.log(char)
+  console.log(module)
   if (DADPlugInfo.multibags == "true")
   {
-    this.removeDADModuleUni($gameParty._actor[char], module)
+    this.removeDADModuleUni($gameParty._actors[char], module)
   }
 }
 
@@ -1741,7 +1744,7 @@ isThereAModuleByChar(char, module, returnswitch) {
 isThereAModuleByPM(char, module, returnswitch) {
   if (DADPlugInfo.multibags == "true")
   {
-    this.isThereAModuleUni($gameParty._actor[char], module, returnswitch)
+    this.isThereAModuleUni($gameParty._actors[char], module, returnswitch)
   }
 }
 
@@ -1751,10 +1754,10 @@ isThereAModuleByPM(char, module, returnswitch) {
 
 isThereAModuleUni(char,module,returnswitch)
 {
-  verdict = false
+  var verdict = false
   for (var i=0; i < $gameParty.DADmodules[char].length;i++)
   {
-    if ($gameParty.DADmodules[char][i] == module)
+    if ($gameParty.DADmodules[char][i].id == module)
     {
       verdict = true
       i = $gameParty.DADmodules[char].length
@@ -1890,7 +1893,7 @@ isCharHaveDADItem(itemtype, dataid, char, returnswitch, module) {
 isPMHaveDADItem(itemtype, dataid, char, returnswitch, module) {
   if (DADPlugInfo.multibags == "true")
   {
-    this.isUniHaveDADItem(itemtype, dataid, $gameParty._actor[char], returnswitch, module)
+    this.isUniHaveDADItem(itemtype, dataid, $gameParty._actors[char], returnswitch, module)
   }
 }
 
@@ -1919,12 +1922,12 @@ isUniHaveDADItem(itemtype, dataid, char, returnswitch, module) {
   {
     for (var i = 0; i < $gameParty.DADitems[char].length;i++)
     {
-      for (j=0; j < $gameParty.DADitems[char][i].length; j++)
+      for (j=0; i != $gameParty.DADitems[char].length && j < $gameParty.DADitems[char][i].length; j++)
       {
-        if ($gameParty.DADitems[char][i][j].itemtype == itemtype && $gameParty.DADitems[char][i][j].dataid == dataid)
+        if ($gameParty.DADitems[char][i] != undefined && $gameParty.DADitems[char][i][j].itemtype == itemtype && $gameParty.DADitems[char][i][j].dataid == dataid)
         {
-          i = $gameParty.DADitems[char].length
           j = $gameParty.DADitems[char][i].length
+          i = $gameParty.DADitems[char].length
           verdict = true
         }
       }
@@ -2483,10 +2486,52 @@ BattleManager.startAction = function() {
         }
       }
 
+      this.cellSpriteCheck = function(sprite){
+        console.log(sprite)
+        switch (this.tsample.itemtype)
+        {
+        case "item":
+          var itemnote = $dataItems[this.tsample.dataid].note
+        break;
+        case "weapon":
+          var itemnote = $dataWeapons[this.tsample.dataid].note
+        break;
+        case "armor":
+          var itemnote = $dataArmors[this.tsample.dataid].note
+        break;
+        }
+        var allowed = itemnote.match(/<DADAllowedCellSprites: (.*)>/i);
+        if (allowed != null)
+        {
+          allowed = allowed[1].split(" ")
+          var verdict = false
+          for (var i = 0; i < allowed.length; i++)
+          {
+            if (allowed[i] == sprite)
+            {verdict = true}
+          }
+          return verdict
+        }
+        else
+        {
+          var forbidden = itemnote.match(/<DADForbiddenCellSprites: (.*)>/i);
+          if (forbidden != null)
+          {
+            forbidden = forbidden[1].split(" ")
+            for (var i = 0; i < forbidden.length; i++)
+            {
+              if (forbidden[i] == sprite)
+              {return false}
+            }
+          }
+        }
+        return true
+      }
+
       this.coreOneCellMoveAnalysis = function() {
         var ohb = this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc]
         fc = logicProcessor(ohb, ohb.inputlogic, this.tsample, this._actor._actorId)
-        if ((this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].item == null || (this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].item == this.grit && this.grcon == this.wp && this.mp != this.grmod)) && fc != false)
+        if ((this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].item == null || (this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].item == this.grit && this.grcon == this.wp && this.mp != this.grmod)) && fc != false && this.cellSpriteCheck(this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].sprite))
         {
           this.allcells = [this.pc]
         }
@@ -2694,6 +2739,7 @@ BattleManager.startAction = function() {
                     moduleid = moduleid[1]
                     if (DADPlugInfo.multibags == "true")
                     {
+                      console.log(this._slotWindow._actor._actorId, moduleid)
                       DADPC.addDADModuleByChar(this._slotWindow._actor._actorId, moduleid)
                     }
                     else
@@ -2899,7 +2945,7 @@ BattleManager.startAction = function() {
               this.coreEmptyReaction()
 
               var key = 1 
-              for (var i=0; this.refpls == true && this.situation != "Shopping" && ( (i<this._DADInventoryWindow.length && DADPlugInfo.multibags == "true") || i<1 ); i++)
+              for (var i=0; this.refpls == true && this.situation != "Shopping" && this.situation != "Chest" && ( (i<this._DADInventoryWindow.length && DADPlugInfo.multibags == "true") || i<1 ); i++)
               {
                 if (DADPlugInfo.multibags == "true")
                 {key = $gameParty._actors[i]}
@@ -3278,9 +3324,7 @@ BattleManager.startAction = function() {
       }
       else
       {
-        var tochnoidup = getElementNumberById($dataDADComplexGrids, $dataDADModules[daidup].ComplexGridId)
-        if (tochnoidup != null)
-        {newcells = GetComplexGrid($dataDADComplexGrids[tochnoidup])}
+        newcells = GetComplexGrid($dataDADModules[daidup].ComplexGridId)
       }
       this.DADCells = [null, [newcells]]
       this.BaseModuleRef = [null, $dataDADModules[daidup]]
@@ -3360,12 +3404,15 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
   }
   else
   {
-    for (var i = 1; i < $gameParty._actors.length; i++)
+    for (var i = 0; i < $gameParty._actors.length; i++)
     {
       for (var j = 0; j < $gameParty.DADCells[$gameParty._actors[i]].length; j++)
-      verdict = DADPC.isPMHaveDADItem(itemtype, item.id, i, null)
-      if (verdict)
+      verdict = DADPC.isUniHaveDADItem(itemtype, item.id, $gameParty._actors[i])
+    
+      console.log(verdict)
+      if (verdict == true)
       {
+        console.log("sas")
         DADPC.removeDADItemFromInvByPM(itemtype, item.id, i)
         i = $gameParty._actors.length
       }
@@ -4126,13 +4173,16 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
             this._DADItemInfo = new Window_DADInfo()
             this.addWindow(this._DADItemInfo)
             this._DADItemInfo.setHandler('cancel',   this.stopEquipping.bind(this));
-            this.pointedactor = 0
             if (DADPlugInfo.multibags == "true")
             {
               this._DADItemInfo.setHandler('pagedown', this.nextAct.bind(this));
               this._DADItemInfo.setHandler('pageup',   this.previousAct.bind(this));
             }
             this.createPartyDADInvWindows(this._slotWindow.width, this._DADItemInfo.height, Graphics.boxWidth - this._slotWindow.width, Graphics.boxHeight - this._DADItemInfo.height,true)
+            this._DADInventoryWindow[0].hide()
+            var winnow = getElementNumber($gameParty._actors, this._actor._actorId)
+            this._DADInventoryWindow[winnow].show()
+            this.pointedactor = winnow
             this._statusWindow.y = this._DADItemInfo.height
             this._slotWindow.height = Graphics.boxHeight - this._DADItemInfo.height - this._statusWindow.height
             this._slotWindow.y = this._statusWindow.y + this._statusWindow.height
@@ -4147,6 +4197,7 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
             this._blankWindow.hide()
             this.addWindow(this._blankWindow)
             this.syncupdate()
+            this._DADItemInfo.activate()
           };
       
           Scene_Equip.prototype.equipping = function() {
@@ -4202,7 +4253,7 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
           };
       
           Scene_Equip.prototype.stopEquipping = function() {
-              this._DADItemInfo.deactivate()
+            this._DADItemInfo.activate()
               this._slotWindow.refresh()
               this._statusWindow.refresh()
               this._slotWindow.activate()
@@ -4300,7 +4351,7 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
                     this._DADItemInfo.setHandler('pagedown', this.nextAct.bind(this));
                     this._DADItemInfo.setHandler('pageup',   this.previousAct.bind(this));
                   }
-                  this.createPartyDADInvWindows(0, this._DADItemInfo.height, Graphics.boxWidth/2, Graphics.boxHeight - this._DADItemInfo.height, true)
+                  this.createPartyDADInvWindows(0, this._DADItemInfo.height, Graphics.boxWidth, Graphics.boxHeight - this._DADItemInfo.height, true)
                   this.syncupdate()
               };
       
@@ -4322,19 +4373,19 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
                 switch (this._DADInventoryWindow[i].DADitems[j][k].itemtype)
                 {
                   case "item":
-                    $gameVariables.setValue(DADPlugInfo.itemchoose, this._DADInventoryWindow[i].DADitems[j][k].dataid)
+                    $gameVariables.setValue(DADPlugInfo.itemchoose, toNumber(this._DADInventoryWindow[i].DADitems[j][k].dataid))
                     $gameVariables.setValue(DADPlugInfo.weaponchoose, 0)
                     $gameVariables.setValue(DADPlugInfo.armorchoose, 0)
                   break;
                   case "weapon":
                     $gameVariables.setValue(DADPlugInfo.itemchoose, 0)
-                    $gameVariables.setValue(DADPlugInfo.weaponchoose, this._DADInventoryWindow[i].DADitems[j][k].dataid)
+                    $gameVariables.setValue(DADPlugInfo.weaponchoose,  toNumber(this._DADInventoryWindow[i].DADitems[j][k].dataid))
                     $gameVariables.setValue(DADPlugInfo.armorchoose, 0)
                   break;
                   case "armor":
                     $gameVariables.setValue(DADPlugInfo.itemchoose, 0)
                     $gameVariables.setValue(DADPlugInfo.weaponchoose, 0)
-                    $gameVariables.setValue(DADPlugInfo.armorchoose, this._DADInventoryWindow[i].DADitems[j][k].dataid)
+                    $gameVariables.setValue(DADPlugInfo.armorchoose,  toNumber(this._DADInventoryWindow[i].DADitems[j][k].dataid))
                   break;
                 }
                 SceneManager.pop()
