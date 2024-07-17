@@ -2361,7 +2361,7 @@ BattleManager.startAction = function() {
         console.log("Объект не является одноклеточным") 
         var ohb = this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc]
         fc = logicProcessor(ohb, ohb.inputlogic, this.tsample, this._actor._actorId)
-        if ((this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].item == null || (this.grmod == this.mp && this.grcon == this.wp && this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].item == this.grit)) && fc != false)
+        if ((this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].item == null || (this.grmod == this.mp && this.grcon == this.wp && this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].item == this.grit)) && fc != false && this.cellSpriteCheck(this._DADInventoryWindow[this.wp].DADcells[this.mp][this.pc].sprite))
         {
           console.log("Клетка " + this.pc + " свободна")
           for (var g =0; g<this.tsample.cellwidth;g++)
@@ -2389,7 +2389,7 @@ BattleManager.startAction = function() {
                 }
                 var ohb = this._DADInventoryWindow[this.wp].DADcells[this.mp][this.idup]
                 fc = logicProcessor(ohb, ohb.inputlogic, this.tsample, this._actor._actorId)
-                if ((this._DADInventoryWindow[this.wp].DADcells[this.mp][this.idup].item == null || (this.grcon == this.wp && this._DADInventoryWindow[this.wp].DADcells[this.mp][this.idup].item == this.grit)) && fc != false)
+                if ((this._DADInventoryWindow[this.wp].DADcells[this.mp][this.idup].item == null || (this.grcon == this.wp && this._DADInventoryWindow[this.wp].DADcells[this.mp][this.idup].item == this.grit)) && fc != false && this.cellSpriteCheck(this._DADInventoryWindow[this.wp].DADcells[this.mp][this.idup].sprite))
                 {
                   console.log("Клетка " + this.idup + " существует и свободна")
                   this.allcells.push(this.idup)
