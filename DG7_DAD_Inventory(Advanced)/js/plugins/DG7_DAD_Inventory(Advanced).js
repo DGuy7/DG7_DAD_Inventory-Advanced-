@@ -933,8 +933,6 @@ removeDADModuleByChar(char, module){
 //=======================================================
 
 removeDADModuleByPM(char, module){
-  console.log(char)
-  console.log(module)
   if (DADPlugInfo.multibags == "true")
   {
     this.removeDADModuleUni($gameParty._actors[char], module)
@@ -1200,7 +1198,7 @@ addDADItemInInvUni(itemtype, dataid, char, module) {
     var idup = getElementNumberById($gameParty.DADmodules[char], module)
     if (idup != null)
     {
-      conf = isItemCanBePlacedUniversal($gameParty.DADCells[char][idup], itemtype, dataid)
+      conf = isItemCanBePlacedUniversal($gameParty.DADCells[char][idup], itemtype, dataid, char)
       if (conf != null)
       {
         switch (itemtype)
@@ -1228,7 +1226,7 @@ addDADItemInInvUni(itemtype, dataid, char, module) {
   {
     for (var k = 0; k < $gameParty.DADmodules[char].length; k++)
     {
-      conf = isItemCanBePlacedUniversal($gameParty.DADCells[char][k], itemtype, dataid)
+      conf = isItemCanBePlacedUniversal($gameParty.DADCells[char][k], itemtype, dataid, char)
       if (conf != null)
       {
         switch (itemtype)
@@ -1811,13 +1809,13 @@ isDADItemCanBePlacedUni(itemtype, dataid, char, returnswitch, module) {
   if (module != undefined)
   {
     idup = getElementNumberById($gameParty.DADmodules[char], module)
-    verdict = isItemCanBePlacedUniversal($gameParty.DADCells[char][idup], itemtype, dataid)
+    verdict = isItemCanBePlacedUniversal($gameParty.DADCells[char][idup], itemtype, dataid, char)
   }
   else
   {
     for (var i = 0; verdict == null && i < $gameParty.DADmodules[char]; i++)
     {
-      verdict = isItemCanBePlacedUniversal($gameParty.DADCells[char][i], itemtype, dataid)
+      verdict = isItemCanBePlacedUniversal($gameParty.DADCells[char][i], itemtype, dataid, char)
     }
   }
   if (verdict != null && returnswitch != "null")
@@ -2487,45 +2485,8 @@ BattleManager.startAction = function() {
       }
 
       this.cellSpriteCheck = function(sprite){
-        console.log(sprite)
-        switch (this.tsample.itemtype)
-        {
-        case "item":
-          var itemnote = $dataItems[this.tsample.dataid].note
-        break;
-        case "weapon":
-          var itemnote = $dataWeapons[this.tsample.dataid].note
-        break;
-        case "armor":
-          var itemnote = $dataArmors[this.tsample.dataid].note
-        break;
-        }
-        var allowed = itemnote.match(/<DADAllowedCellSprites: (.*)>/i);
-        if (allowed != null)
-        {
-          allowed = allowed[1].split(" ")
-          var verdict = false
-          for (var i = 0; i < allowed.length; i++)
-          {
-            if (allowed[i] == sprite)
-            {verdict = true}
-          }
-          return verdict
-        }
-        else
-        {
-          var forbidden = itemnote.match(/<DADForbiddenCellSprites: (.*)>/i);
-          if (forbidden != null)
-          {
-            forbidden = forbidden[1].split(" ")
-            for (var i = 0; i < forbidden.length; i++)
-            {
-              if (forbidden[i] == sprite)
-              {return false}
-            }
-          }
-        }
-        return true
+        csc.call(this)
+        return this.check(this.tsample.itemtype, this.tsample.dataid, sprite)
       }
 
       this.coreOneCellMoveAnalysis = function() {
@@ -3378,7 +3339,7 @@ Game_Party.prototype.gainItem = function(item, amount, includeEquip) {
       for (var i = 1; i < $gameParty._actors.length; i++)
       {
         for (var j = 0; j < $gameParty.DADCells[$gameParty._actors[i]].length; j++)
-        verdict = isItemCanBePlacedUniversal($gameParty.DADCells[$gameParty._actors[i]][j], itemtype, item.id)
+        verdict = isItemCanBePlacedUniversal($gameParty.DADCells[$gameParty._actors[i]][j], itemtype, item.id, $gameParty._actors[i])
         if (verdict)
         {
           DADPC.addDADItemInInvByPM(itemtype, item.id, i)
@@ -3408,11 +3369,8 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
     {
       for (var j = 0; j < $gameParty.DADCells[$gameParty._actors[i]].length; j++)
       verdict = DADPC.isUniHaveDADItem(itemtype, item.id, $gameParty._actors[i])
-    
-      console.log(verdict)
       if (verdict == true)
       {
-        console.log("sas")
         DADPC.removeDADItemFromInvByPM(itemtype, item.id, i)
         i = $gameParty._actors.length
       }
@@ -3503,7 +3461,50 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
     return cellsForReturn
   }
 
-  isItemCanBePlacedUniversal = function(cells, itemtype, dataid) {
+  csc = function(itemtype, dataid, sprite){
+    this.check = function (itemtype, dataid, sprite){
+      switch (itemtype)
+      {
+      case "item":
+        var itemnote = $dataItems[dataid].note
+      break;
+      case "weapon":
+        var itemnote = $dataWeapons[dataid].note
+      break;
+      case "armor":
+        var itemnote = $dataArmors[dataid].note
+      break;
+      }
+      var allowed = itemnote.match(/<DADAllowedCellSprites: (.*)>/i);
+      if (allowed != null)
+      {
+        allowed = allowed[1].split(" ")
+        var verdict = false
+        for (var i = 0; i < allowed.length; i++)
+        {
+          if (allowed[i] == sprite)
+          {verdict = true}
+        }
+        return verdict
+      }
+      else
+      {
+        var forbidden = itemnote.match(/<DADForbiddenCellSprites: (.*)>/i);
+        if (forbidden != null)
+        {
+          forbidden = forbidden[1].split(" ")
+          for (var i = 0; i < forbidden.length; i++)
+          {
+            if (forbidden[i] == sprite)
+            {return false}
+          }
+        }
+      }
+      return true
+    }
+  }
+
+  isItemCanBePlacedUniversal = function(cells, itemtype, dataid, actor) {
     switch (itemtype)
     {
       case "item":
@@ -3535,68 +3536,36 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
       cellwidth = 1
     }
     var choosedconf = null
+    var trin = null
     var dir = ["up", "right", "down", "left"]
     for (var i = 0; i < cells.length; i++)
     {
       for (var j = 0; j<4; j++)
       {
-        researchcell = cells[i]
-        researchforw = cells[i]
+        var researchcell = cells[i]
+        var researchforw = cells[i]
         var isfailedcycle = false
         var claimedcells = []
-        for (var n = 0; n<cellwidth; n++)
+        for (var n = 0; isfailedcycle == false && n<cellwidth; n++)
         {
           for (var m=0; m<celllength;m++)
           {
             this.idup = null
-            for (var t = 0; researchcell != undefined && t < cells.length; t++)
-            {
-              if (cells[t].id == researchcell.id)
-              {
-                this.idup = t
-                t = cells.length
-              }
-            }
-            if (this.idup == null || cells[this.idup].item != null || researchcell == undefined || researchcell == null)
+            if (researchcell != undefined)
+            {this.idup = getElementNumberById(cells, researchcell.id)}
+            if(this.idup != null)
+            {mleb = function(itemtype, dataid, sprite){csc.call(this);return this.check(itemtype, dataid, sprite)}}
+            var ohb = cells[i]
+            fc = logicProcessor(ohb, ohb.inputlogic, {itemtype: itemtype, dataid: dataid, direction: dir[j]}, actor)
+            if (researchcell == undefined || this.idup == null || cells[this.idup].item != null || mleb(itemtype, dataid, cells[this.idup].sprite) == false || fc == false)
             {
               m = celllength
               n = cellwidth
               isfailedcycle = true
             }
-            else if (m == celllength-1)
-            {
-              claimedcells.push(this.idup)
-              var trin
-              switch (dir)
-              {
-                case "up":
-                  trin = researchforw.jointR
-                break;
-                case "right":
-                  trin = researchforw.jointD
-                break;
-                case "down":
-                  trin = researchforw.jointL
-                break;
-                case "left":
-                  trin = researchforw.jointU
-                break;
-              }
-              for (var t = 0; t < cells.length; t++)
-              {
-                if (cells[t].id == trin)
-                {
-                  this.idup = t
-                  t = cells.length
-                }
-              }
-              researchcell = cells[this.idup]
-              researchforw = cells[this.idup]
-            }
             else
             {
               claimedcells.push(this.idup)
-              var trin
               switch (dir[j])
               {
                 case "up":
@@ -3612,18 +3581,32 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
                   trin = researchcell.jointL
                 break;
               }
-              this.idup = null
-              for (var t = 0; trin != null && t < cells.length; t++)
-              {
-                if (cells[t].id == trin)
-                {
-                  this.idup = t
-                  t = cells.length
-                }
-              }
+              this.idup = getElementNumberById(cells, trin)
               researchcell = cells[this.idup]
             }
           }
+          if (researchforw != undefined)
+          {
+            switch (dir[j])
+            {
+              case "up":
+                trin = researchforw.jointR
+              break;
+              case "right":
+                trin = researchforw.jointD
+              break;
+              case "down":
+                trin = researchforw.jointL
+              break;
+              case "left":
+                trin = researchforw.jointU
+              break;
+            }
+            this.idup = getElementNumberById(cells, trin)
+            researchcell = cells[this.idup]
+            researchforw = cells[this.idup] 
+          }
+          
         }
         if (isfailedcycle == false)
         {
@@ -3984,13 +3967,14 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
           this.addWindow(this._DADItemInfo)
           this._DADItemInfo.hide()
           this.pointedactor = 0
+          this._itemWindow.x = Graphics.boxWidth;
           if (DADPlugInfo.multibags == "true")
           {
             this._DADItemInfo.setHandler('pagedown', this.nextAct.bind(this));
             this._DADItemInfo.setHandler('pageup',   this.previousAct.bind(this));
           }
 
-          this.createPartyDADInvWindows(0, this._DADItemInfo.height, Graphics.boxWidth, Graphics.boxHeight - this._DADItemInfo.height - this._actorCommandWindow.height,true)
+          this.createPartyDADInvWindows(0, this._DADItemInfo.height, Graphics.boxWidth, Graphics.boxHeight - this._DADItemInfo.height,true)
           this._DADInventoryWindow[0].hide()
 
           this._DADItemInfo.setHandler('cancel', this.exitFromThisShit.bind(this));
@@ -3999,6 +3983,10 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
           this._itemWindow.processOk = function() {}
           this.syncupdate()
           this._DADactionlist = []
+          this._actorWindow.x = (Graphics.boxWidth - this._actorWindow.width) / 2
+          this._windowLayer.removeChild(this._actorWindow)
+          this.addWindow(this._actorWindow)
+          this._actorWindow.refresh()
       };
       
       Scene_Battle.prototype.exitFromThisShit = function() {
@@ -4099,8 +4087,6 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
             var action = BattleManager.inputtingAction();
             action.setItem(item.id);
             this.onSelectAction();
-            this._DADInventoryWindow[this.pointedactor].hide()
-            this._DADItemInfo.hide()
             this._itemWindow.deactivate();
             this._DADactionlist.push({action: action, pointedactor: this.pointedactor, DADmodulepointed: this.DADmodulepointed, DADitempointed: this.DADitempointed})
           }
@@ -4109,11 +4095,29 @@ Game_Party.prototype.loseItem = function(item, amount, includeEquip) {
       
       Scene_Battle.prototype.onItemCancel = function() {
           this._itemWindow.hide();
+          this._itemWindow.deactivate();
           this._actorCommandWindow.activate();
           this._DADInventoryWindow[this.pointedactor].hide()
           this._DADItemInfo.hide()
       };
-      
+
+      Scene_Battle.prototype.onActorCancel = function() {
+        this._actorWindow.hide();
+        switch (this._actorCommandWindow.currentSymbol()) {
+        case 'skill':
+            this._skillWindow.show();
+            this._skillWindow.activate();
+            break;
+        case 'item':
+            this._itemWindow.deactivate();
+            this._itemWindow.hide();
+            this._actorCommandWindow.activate();
+            this._DADInventoryWindow[this.pointedactor].hide()
+            this._DADItemInfo.hide()
+            break;
+        }
+      };
+
       Scene_Battle.prototype.winnigshit = function() {
         for (var i = 0; i < this._DADInventoryWindow.length;i++)
         {this._windowLayer.removeChild(this._DADInventoryWindow[i])}
